@@ -1,0 +1,28 @@
+{
+    "CraftRecipe" : {
+        "type" : "EXTERNAL",
+        "result" : "engine:plankstair",
+        "recipe" :  {
+            bottom:
+                [
+                    "plank",  "plank", "plank",
+                    "plank",  "plank", "plank",
+                    "plank",  "plank", "plank"
+                ],
+            "middle":
+                [
+                    " ",  " ",     " ",
+                    "plank",  "plank", "plank",
+                    "plank",  "plank", "plank"
+                ],
+            "top":
+                [
+                    " ",  " ",     " ",
+                    " ",  " ", " ",
+                    "plank",  "plank", "plank"
+                ]
+        }
+
+    }
+
+}
