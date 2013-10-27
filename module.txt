@@ -1,0 +1,9 @@
+{
+    "id" : "Crafting",
+    "version" : "0.1.0",
+    "author" : "small-jeeper / Adeon",
+    "displayName" : "Crafting System",
+    "description" : "This module adds a crafting system",
+    "dependencies" : [],
+    "isServerSideOnly" : false
+}
