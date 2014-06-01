@@ -1,0 +1,9 @@
+{
+    "id" : "Crafting",
+    "version" : "0.1.0",
+    "author" : "",
+    "displayName" : "Crafting",
+    "description" : "",
+    "dependencies" : [],
+    "isServerSideOnly" : false
+}
