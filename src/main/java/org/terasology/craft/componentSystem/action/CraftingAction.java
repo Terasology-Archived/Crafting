@@ -18,10 +18,6 @@ package org.terasology.craft.componentSystem.action;
 import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.terasology.componentSystem.items.InventorySystem;
-import org.terasology.components.InventoryComponent;
-import org.terasology.components.ItemComponent;
-import org.terasology.components.LocalPlayerComponent;
 import org.terasology.craft.components.actions.CraftingActionComponent;
 import org.terasology.craft.components.utility.CraftRecipeComponent;
 import org.terasology.craft.events.crafting.AddItemEvent;
@@ -29,19 +25,22 @@ import org.terasology.craft.events.crafting.ChangeLevelEvent;
 import org.terasology.craft.events.crafting.CheckRefinementEvent;
 import org.terasology.craft.events.crafting.DeleteItemEvent;
 import org.terasology.craft.rendering.CraftingGrid;
-import org.terasology.entityFactory.BlockItemFactory;
-import org.terasology.entitySystem.*;
-import org.terasology.events.ActivateEvent;
-import org.terasology.events.inventory.ReceiveItemEvent;
-import org.terasology.game.CoreRegistry;
-import org.terasology.logic.LocalPlayer;
-import org.terasology.logic.manager.GUIManager;
+import org.terasology.entitySystem.entity.EntityManager;
+import org.terasology.entitySystem.entity.EntityRef;
+import org.terasology.entitySystem.event.ReceiveEvent;
+import org.terasology.entitySystem.prefab.PrefabManager;
+import org.terasology.entitySystem.systems.BaseComponentSystem;
+import org.terasology.entitySystem.systems.RegisterMode;
+import org.terasology.entitySystem.systems.RegisterSystem;
+import org.terasology.logic.common.ActivateEvent;
+import org.terasology.logic.inventory.ItemComponent;
+import org.terasology.logic.players.LocalPlayer;
 import org.terasology.math.AABB;
-import org.terasology.rendering.gui.widgets.UIItemContainer;
+import org.terasology.registry.In;
 import org.terasology.world.WorldProvider;
 import org.terasology.world.block.Block;
 import org.terasology.world.block.BlockComponent;
-import org.terasology.world.block.management.BlockManager;
+import org.terasology.entitySystem.prefab.Prefab;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,23 +50,27 @@ import java.util.Map;
 /**
  * @author Small-Jeeper
  */
-@RegisterComponentSystem
-public class CraftingAction implements EventHandlerSystem {
+@RegisterSystem(RegisterMode.AUTHORITY)
+public class CraftingAction extends BaseComponentSystem
+    @In
     private WorldProvider worldProvider;
+    @In
     private EntityManager entityManager;
+    @In
+    private PrefabManager prefManager;
+    @In
+    private LocalPlayer localPlayer;
+
     private Map<String, ArrayList<Prefab>> entitesWithRecipes = Maps.newHashMap();
     private Map<String, ArrayList<RefinementData>> entitesWithRefinement = Maps.newHashMap();
     private static final String EMPTY_ROW = " ";
     private static final Logger logger = LoggerFactory.getLogger(CraftingAction.class);
 
+
     @Override
     public void initialise() {
-        worldProvider = CoreRegistry.get(WorldProvider.class);
-        entityManager = CoreRegistry.get(EntityManager.class);
-
-        PrefabManager prefMan = CoreRegistry.get(PrefabManager.class);
         //prefMan.getPrefab()
-        for (Prefab prefab : prefMan.listPrefabs(CraftRecipeComponent.class)) {
+        for (Prefab prefab : prefManager.listPrefabs(CraftRecipeComponent.class)) {
             CraftRecipeComponent recipe = prefab.getComponent(CraftRecipeComponent.class);
 
             if (recipe.refinement.size() > 0) {
@@ -119,9 +122,8 @@ public class CraftingAction implements EventHandlerSystem {
         CraftingActionComponent craftingComponent = entity.getComponent(CraftingActionComponent.class);
 
         if (!craftingComponent.possibleItem.equals(EntityRef.NULL)) {
-            EntityRef player = CoreRegistry.get(LocalPlayer.class).getEntity();
-            player.send(new ReceiveItemEvent(craftingComponent.possibleItem));
-            decreaseItems(entity, player);
+            localPlayer.getCharacterEntity().send(new ReceiveItemEvent(craftingComponent.possibleItem));
+            decreaseItems(entity, localPlayer.getCharacterEntity());
 
             checkEmptyCraftBlock(entity);
 

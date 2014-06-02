@@ -16,9 +16,8 @@
 package org.terasology.craft.components.actions;
 
 import com.google.common.collect.Maps;
-import org.terasology.components.actions.ActionTarget;
 import org.terasology.entitySystem.Component;
-import org.terasology.entitySystem.EntityRef;
+import org.terasology.entitySystem.entity.EntityRef;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -27,8 +26,6 @@ import java.util.Map;
  * @author Small-Jeeper
  */
 public class CraftingActionComponent implements Component {
-    public ActionTarget relativeTo = ActionTarget.Self;
-
     private Map<String, ArrayList<EntityRef>> elements = Maps.newHashMap();
 
     public static String[] levels = {"bottom", "middle", "top"};
@@ -37,8 +34,8 @@ public class CraftingActionComponent implements Component {
     public EntityRef lastSelected = EntityRef.NULL;
     public boolean isRefinement = false;
 
-    public final static int MAX_SLOTS = 9;
-    public final static int MAX_LEVEL = 3;
+    public static final int MAX_SLOTS = 9;
+    public static final int MAX_LEVEL = 3;
 
     private int currentItemSlot = 0;
     private int currentLevel = 0;

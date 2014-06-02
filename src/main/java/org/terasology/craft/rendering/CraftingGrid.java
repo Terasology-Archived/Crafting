@@ -1,18 +1,22 @@
 package org.terasology.craft.rendering;
 
 import org.terasology.craft.components.actions.CraftingActionComponent;
-import org.terasology.game.CoreRegistry;
-import org.terasology.input.CameraTargetSystem;
+import org.terasology.input.cameraTarget.CameraTargetSystem;
+import org.terasology.registry.CoreRegistry;
 import org.terasology.math.AABB;
+import org.terasology.registry.In;
 import org.terasology.rendering.cameras.Camera;
-import org.terasology.rendering.renderer.AABBRenderer;
-import org.terasology.rendering.renderer.BlockOverlayRenderer;
+import org.terasology.rendering.AABBRenderer;
+import org.terasology.rendering.BlockOverlayRenderer;
 import org.terasology.rendering.world.WorldRenderer;
 
 import javax.vecmath.Vector3f;
 import java.util.ArrayList;
 
 public class CraftingGrid implements BlockOverlayRenderer {
+
+    @In
+    private CameraTargetSystem cameraTargetSystem;
 
     public static final Vector3f CUBE_SIZE = new Vector3f(0.33333f, 0.33333f, 0.333333f);
 
