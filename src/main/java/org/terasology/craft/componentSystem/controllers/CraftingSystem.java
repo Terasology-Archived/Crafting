@@ -8,6 +8,7 @@ import org.terasology.craft.events.crafting.ChangeLevelEvent;
 import org.terasology.craft.events.crafting.CheckRefinementEvent;
 import org.terasology.craft.events.crafting.DeleteItemEvent;
 import org.terasology.craft.rendering.CraftingGrid;
+import org.terasology.entitySystem.entity.EntityManager;
 import org.terasology.entitySystem.entity.EntityRef;
 import org.terasology.entitySystem.event.EventPriority;
 import org.terasology.entitySystem.event.ReceiveEvent;
@@ -27,6 +28,7 @@ import org.terasology.input.events.MouseXAxisEvent;
 import org.terasology.input.events.MouseYAxisEvent;
 import org.terasology.logic.characters.CharacterComponent;
 import org.terasology.logic.characters.CharacterMovementComponent;
+import org.terasology.logic.common.ActivateEvent;
 import org.terasology.logic.inventory.InventoryComponent;
 import org.terasology.logic.inventory.InventoryUtils;
 import org.terasology.logic.inventory.ItemComponent;
@@ -34,11 +36,17 @@ import org.terasology.logic.players.LocalPlayer;
 import org.terasology.logic.players.LocalPlayerSystem;
 import org.terasology.logic.players.PlayerInventorySystem;
 import org.terasology.math.AABB;
+import org.terasology.protobuf.EntityData;
 import org.terasology.registry.In;
+import org.terasology.rendering.AABBRenderer;
+import org.terasology.rendering.BlockOverlayRenderer;
 import org.terasology.rendering.world.WorldRenderer;
 import org.terasology.world.WorldProvider;
 import org.terasology.world.block.Block;
 import org.terasology.world.block.BlockComponent;
+import org.terasology.world.block.BlockManager;
+import org.terasology.world.block.items.BlockItemComponent;
+import org.terasology.world.block.items.BlockItemFactory;
 
 import javax.vecmath.Vector2f;
 import javax.vecmath.Vector3f;
@@ -68,6 +76,12 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
     private WorldRenderer worldRenderer;
 
     @In
+    private EntityManager entityManager;
+
+    @In
+    private BlockManager blockManager;
+
+    @In
     private org.terasology.engine.Time timer;
 
     private boolean useButtonPushed = false;
@@ -95,6 +109,9 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
 
     private boolean isGUIInit = false;
 
+    private BlockOverlayRenderer craftingGridRenderer = new CraftingGrid();
+    private BlockOverlayRenderer aabbRenderer = new AABBRenderer(AABB.createEmpty());
+
     /*Craft UI*/
    /* private UIItemContainer inventory;
     private UIImage craftingCloudBackground;
@@ -102,9 +119,7 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
     private UIImage craftingArrow;
     private UICompositeScrollable miniInventory;
     private UIItemContainer craftElement;
-
-    private BlockOverlayRenderer craftingGridRenderer = new CraftingGrid();
-    private BlockOverlayRenderer aabbRenderer = new AABBRenderer(AABB.createEmpty());             */
+   */
 
     @Override
     public void initialise() {
@@ -428,19 +443,20 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
                 }
 
                 BlockItemFactory blockFactory = new BlockItemFactory(entityManager);
-                EntityRef craftEntity = blockFactory.newInstance(BlockManager.getInstance().getBlockFamily("craft:craft"));
+
+                EntityRef craftEntity = blockFactory.newInstance(blockManager.getBlockFamily("rails:Rails"));
 
                 BlockItemComponent blockItemComponent = craftEntity.getComponent(BlockItemComponent.class);
 
-                if (!blockItemComponent.placedEntity.hasComponent(CraftingActionComponent.class)) {
+               /* if (!blockItemComponent.placedEntity.hasComponent(CraftingActionComponent.class)) {
                     blockItemComponent.placedEntity.addComponent(new CraftingActionComponent());
-                }
+                }*/
 
-                EntityRef placedEntity = blockItemComponent.placedEntity;
+                //EntityRef placedEntity = blockItemComponent.placedEntity;
 
                 if (craftEntity.exists()) {
                     craftEntity.send(new ActivateEvent(target, selectedItemEntity, new Vector3f(worldRenderer.getActiveCamera().getPosition()), new Vector3f(worldRenderer.getActiveCamera().getPosition()), event.getHitPosition(), event.getHitNormal()));
-                    placedEntity.send(new ActivateEvent(target, selectedItemEntity, new Vector3f(worldRenderer.getActiveCamera().getPosition()), new Vector3f(worldRenderer.getActiveCamera().getPosition()), event.getHitPosition(), event.getHitNormal()));
+                    //placedEntity.send(new ActivateEvent(target, selectedItemEntity, new Vector3f(worldRenderer.getActiveCamera().getPosition()), new Vector3f(worldRenderer.getActiveCamera().getPosition()), event.getHitPosition(), event.getHitNormal()));
                     craftEntity.destroy();
 
                     if (item.stackCount <= 0) {
@@ -450,8 +466,8 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
                     stateCreateBlock = statesCreateBlock.CREATED;
                 }
                 lastInteraction = timer.getGameTimeInMs();
-                localPlayerComp.handAnimation = 0.5f;
-                playerEntity.saveComponent(localPlayerComp);
+                //localPlayerComp.handAnimation = 0.5f;
+                //playerEntity.saveComponent(localPlayerComp);
                 event.consume();
             }
         }
@@ -465,8 +481,9 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
             isGUIInit = true;
         }
 
-        if (!localPlayer.isValid())
+        if (!localPlayer.isValid()) {
             return;
+        }
 
         EntityRef entity = localPlayer.getCharacterEntity();
 
@@ -501,18 +518,18 @@ public class CraftingSystem extends BaseComponentSystem implements UpdateSubscri
     }
 
     private void showSmallInventory(int position) {
-        UICompositeScrollable inventory = (UICompositeScrollable) guiManager.getWindowById("hud").getElementById("hud:inventory");
+        /*UICompositeScrollable inventory = (UICompositeScrollable) guiManager.getWindowById("hud").getElementById("hud:inventory");
         inventory.setVisible(true);
         ((ChooseRowLayout) inventory.getLayout()).getPosition().y = (position - 1) * 36f;
-        lastTimeShowInventory = timer.getGameTimeInMs();
+        lastTimeShowInventory = timer.getGameTimeInMs();*/
     }
 
     private void resetDropMark() {
-        UIImage crossHair = (UIImage) guiManager.getWindowById("hud").getElementById("crosshair");
+       /* UIImage crossHair = (UIImage) guiManager.getWindowById("hud").getElementById("crosshair");
         lastTimeThrowInteraction = 0;
         crossHair.getTextureSize().set(new Vector2f(20f / 256f, 20f / 256f));
         crossHair.getTextureOrigin().set(new Vector2f(24f / 256f, 24f / 256f));
-        localPlayerSystem.resetDropMark();
+        localPlayerSystem.resetDropMark();*/
     }
 
     private float getDropPower() {

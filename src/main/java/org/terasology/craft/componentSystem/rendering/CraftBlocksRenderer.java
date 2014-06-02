@@ -1,3 +1,4 @@
+
 package org.terasology.craft.componentSystem.rendering;
 
 import com.google.common.collect.Maps;
@@ -5,30 +6,16 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.newdawn.slick.Color;
 import org.terasology.asset.Assets;
-import org.terasology.componentSystem.RenderSystem;
-import org.terasology.components.InventoryComponent;
-import org.terasology.components.ItemComponent;
 import org.terasology.craft.components.actions.CraftingActionComponent;
 import org.terasology.craft.rendering.CraftingGrid;
-import org.terasology.entitySystem.*;
-import org.terasology.game.CoreRegistry;
-import org.terasology.input.CameraTargetSystem;
-import org.terasology.logic.manager.GUIManager;
+import org.terasology.entitySystem.systems.RegisterMode;
+import org.terasology.entitySystem.systems.RegisterSystem;
 import org.terasology.math.AABB;
 import org.terasology.math.Vector3i;
-import org.terasology.model.inventory.Icon;
-import org.terasology.rendering.assets.Font;
-import org.terasology.rendering.assets.GLSLShaderProgramInstance;
-import org.terasology.rendering.assets.Texture;
-import org.terasology.rendering.gui.framework.UIDisplayElement;
-import org.terasology.rendering.gui.widgets.UIItemContainer;
-import org.terasology.rendering.primitives.Mesh;
-import org.terasology.rendering.primitives.MeshFactory;
 import org.terasology.rendering.world.WorldRenderer;
 import org.terasology.world.WorldProvider;
 import org.terasology.world.block.Block;
 import org.terasology.world.block.BlockComponent;
-import org.terasology.world.block.BlockItemComponent;
 import org.terasology.world.block.family.BlockFamily;
 
 import javax.vecmath.Vector2f;
@@ -45,9 +32,9 @@ import static org.lwjgl.opengl.GL11.*;
  * @author Small-Jeeper
  */
 
-@RegisterComponentSystem(headedOnly = true)
-public class CraftBlocksRenderer implements RenderSystem, EventHandlerSystem {
-    private Texture toolTipTexture;
+//@RegisterSystem(RegisterMode.AUTHORITY)
+public class CraftBlocksRenderer /*implements RenderSystem, EventHandlerSystem*/ {
+   /* private Texture toolTipTexture;
     private Texture terrainTex;
     private WorldProvider worldProvider;
     private EntityManager entityManager;
@@ -504,5 +491,5 @@ public class CraftBlocksRenderer implements RenderSystem, EventHandlerSystem {
 
     @Override
     public void renderAlphaBlend() {
-    }
+    }*/
 }
