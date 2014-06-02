@@ -32,7 +32,11 @@ import org.terasology.entitySystem.prefab.PrefabManager;
 import org.terasology.entitySystem.systems.BaseComponentSystem;
 import org.terasology.entitySystem.systems.RegisterMode;
 import org.terasology.entitySystem.systems.RegisterSystem;
+import org.terasology.logic.characters.CharacterComponent;
 import org.terasology.logic.common.ActivateEvent;
+import org.terasology.logic.common.DisplayNameComponent;
+import org.terasology.logic.inventory.InventoryManager;
+import org.terasology.logic.inventory.InventoryUtils;
 import org.terasology.logic.inventory.ItemComponent;
 import org.terasology.logic.players.LocalPlayer;
 import org.terasology.math.AABB;
@@ -41,6 +45,7 @@ import org.terasology.world.WorldProvider;
 import org.terasology.world.block.Block;
 import org.terasology.world.block.BlockComponent;
 import org.terasology.entitySystem.prefab.Prefab;
+import org.terasology.world.block.BlockManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +56,7 @@ import java.util.Map;
  * @author Small-Jeeper
  */
 @RegisterSystem(RegisterMode.AUTHORITY)
-public class CraftingAction extends BaseComponentSystem
+public class CraftingAction extends BaseComponentSystem {
     @In
     private WorldProvider worldProvider;
     @In
@@ -60,7 +65,10 @@ public class CraftingAction extends BaseComponentSystem
     private PrefabManager prefManager;
     @In
     private LocalPlayer localPlayer;
+    @In
+    private InventoryManager inventoryManager;
 
+    private static final int MAX_STACK = 99;
     private Map<String, ArrayList<Prefab>> entitesWithRecipes = Maps.newHashMap();
     private Map<String, ArrayList<RefinementData>> entitesWithRefinement = Maps.newHashMap();
     private static final String EMPTY_ROW = " ";
@@ -89,7 +97,7 @@ public class CraftingAction extends BaseComponentSystem
                             }
                         }
 
-                        refinementData.resultPrefab = prefab;
+                        refinementData.resultPrefab = entityManager.create(prefab);
 
                         if (!entitesWithRefinement.containsKey(refinementData.target)) {
                             entitesWithRefinement.put(refinementData.target, new ArrayList<RefinementData>());
@@ -122,16 +130,17 @@ public class CraftingAction extends BaseComponentSystem
         CraftingActionComponent craftingComponent = entity.getComponent(CraftingActionComponent.class);
 
         if (!craftingComponent.possibleItem.equals(EntityRef.NULL)) {
-            localPlayer.getCharacterEntity().send(new ReceiveItemEvent(craftingComponent.possibleItem));
-            decreaseItems(entity, localPlayer.getCharacterEntity());
+            EntityRef player = localPlayer.getCharacterEntity();
+            inventoryManager.giveItem(player,player,craftingComponent.possibleItem);
+            //decreaseItems(entity, localPlayer.getCharacterEntity());
 
             checkEmptyCraftBlock(entity);
 
             if (entity.exists()) {
-                EntityRef possibleCraft = tryCraft(entity);
+                //EntityRef possibleCraft = tryCraft(entity);
 
-                craftingComponent.possibleItem = possibleCraft;
-                entity.saveComponent(craftingComponent);
+                //craftingComponent.possibleItem = possibleCraft;
+                //entity.saveComponent(craftingComponent);
             }
 
         } else {
@@ -139,7 +148,7 @@ public class CraftingAction extends BaseComponentSystem
         }
     }
 
-    @ReceiveEvent(components = {CraftingActionComponent.class})
+   /* @ReceiveEvent(components = {CraftingActionComponent.class})
     public void onAddItem(AddItemEvent event, EntityRef entity) {
         CraftingActionComponent craftingComponent = entity.getComponent(CraftingActionComponent.class);
 
@@ -151,13 +160,8 @@ public class CraftingAction extends BaseComponentSystem
         byte sendingCount = 1;
         byte returnedCount = 0;
 
-        /*if( craftingComponent.lastSelected.equals(selectedEntity) ){
-            return;
-        }
-
-        craftingComponent.lastSelected = selectedEntity;  */
-
         ItemComponent playerItem = entityFromPlayer.getComponent(ItemComponent.class);
+        DisplayNameComponent playerItemInfo = entityFromPlayer.getComponent(DisplayNameComponent.class);
 
         if (playerItem == null) {
             return;
@@ -177,17 +181,18 @@ public class CraftingAction extends BaseComponentSystem
             playerItem.stackCount--;
         }
 
+        DisplayNameComponent craftItemInfo = selectedEntity.getComponent(DisplayNameComponent.class);
         ItemComponent craftItem = selectedEntity.getComponent(ItemComponent.class);
 
-        if (craftItem != null && craftItem.name.toLowerCase().equals(playerItem.name.toLowerCase())) {
+        if (craftItemInfo != null && craftItemInfo.name.toLowerCase().equals(playerItemInfo.name.toLowerCase())) {
 
-            if (craftItem.stackCount >= InventorySystem.MAX_STACK) {
+            if (craftItem.stackCount >= MAX_STACK) {
                 return;
             }
 
-            if ((craftItem.stackCount + sendingCount) > InventorySystem.MAX_STACK) {
-                returnedCount = (byte) ((craftItem.stackCount + sendingCount) - InventorySystem.MAX_STACK);
-                craftItem.stackCount = InventorySystem.MAX_STACK;
+            if ((craftItem.stackCount + sendingCount) > MAX_STACK) {
+                returnedCount = (byte) ((craftItem.stackCount + sendingCount) - MAX_STACK);
+                craftItem.stackCount = MAX_STACK;
 
             } else {
                 craftItem.stackCount += sendingCount;
@@ -215,11 +220,12 @@ public class CraftingAction extends BaseComponentSystem
             craftItem.stackCount = sendingCount;
             entityToCraftBlock.saveComponent(craftItem);
 
-            EntityRef player = CoreRegistry.get(LocalPlayer.class).getEntity();
-            ItemComponent tItem = selectedEntity.getComponent(ItemComponent.class);
-            tItem.container = EntityRef.NULL;
-            selectedEntity.saveComponent(tItem);
-            player.send(new ReceiveItemEvent(entityManager.copy(selectedEntity)));
+            EntityRef player = localPlayer.getCharacterEntity();
+            //ItemComponent tItem = selectedEntity.getComponent(ItemComponent.class);
+            //tItem.container = EntityRef.NULL;
+            //selectedEntity.saveComponent(tItem);
+            //player.send(new ReceiveItemEvent(entityManager.copy(selectedEntity)));
+            inventoryManager.giveItem(player,player,selectedEntity);
             craftingComponent.getCurrentLevelElements().set(selectedCell, entityToCraftBlock);
         }
 
@@ -237,7 +243,7 @@ public class CraftingAction extends BaseComponentSystem
         craftingComponent.possibleItem = tryCraft(entity);
         entity.saveComponent(craftingComponent);
 
-    }
+    }    */
 
     /*
      * If Changed "Y position" of craft grid
@@ -251,7 +257,7 @@ public class CraftingAction extends BaseComponentSystem
         }
     }
 
-    @ReceiveEvent(components = {CraftingActionComponent.class})
+   /* @ReceiveEvent(components = {CraftingActionComponent.class})
     public void onDeleteItem(DeleteItemEvent event, EntityRef entity) {
         CraftingActionComponent craftingComponent = entity.getComponent(CraftingActionComponent.class);
 
@@ -281,13 +287,12 @@ public class CraftingAction extends BaseComponentSystem
         //Send item to player
         EntityRef entityForPlayer = entityManager.copy(selectedEntity);
         ItemComponent entityForPlayerItem = entityForPlayer.getComponent(ItemComponent.class);
-        entityForPlayerItem.container = EntityRef.NULL;
+        //entityForPlayerItem.container = EntityRef.NULL;
         entityForPlayerItem.stackCount = sendingCount;
         entityForPlayer.saveComponent(entityForPlayerItem);
 
-        EntityRef player = CoreRegistry.get(LocalPlayer.class).getEntity();
-        player.send(new ReceiveItemEvent(entityForPlayer));
-
+        EntityRef player = localPlayer.getCharacterEntity();
+        inventoryManager.giveItem(player,player,selectedEntity);
 
         if (craftItem.stackCount == 0) {
             craftingComponent.deleteItem(getSelectedItemFromCraftBlock(entity, craftingComponent.getCurrentLevel()));
@@ -310,9 +315,9 @@ public class CraftingAction extends BaseComponentSystem
                 entity.saveComponent(craftingComponent);
             }
         }
-    }
+    }*/
 
-    @ReceiveEvent(components = {CraftingActionComponent.class})
+   /* @ReceiveEvent(components = {CraftingActionComponent.class})
     public void checkRefinement(CheckRefinementEvent event, EntityRef entity) {
         CraftingActionComponent craftingComponent = entity.getComponent(CraftingActionComponent.class);
 
@@ -321,10 +326,9 @@ public class CraftingAction extends BaseComponentSystem
             return;
         }
 
-        LocalPlayerComponent localPlayer = event.getInstigator().getComponent(LocalPlayerComponent.class);
-        InventoryComponent inventory = event.getInstigator().getComponent(InventoryComponent.class);
+        CharacterComponent characterComponent = event.getInstigator().getComponent(CharacterComponent.class);
 
-        if (localPlayer == null || inventory == null) {
+        if (characterComponent == null) {
             disablePossibleItem(craftingComponent);
             return;
         }
@@ -345,32 +349,36 @@ public class CraftingAction extends BaseComponentSystem
             }
         }
 
-        UIItemContainer toolbar = (UIItemContainer) CoreRegistry.get(GUIManager.class).getWindowById("hud").getElementById("toolbar");
-        ItemComponent instigatorItem = inventory.itemSlots.get(toolbar.getSlotStart() + localPlayer.selectedTool).getComponent(ItemComponent.class);
+        //UIItemContainer toolbar = (UIItemContainer) CoreRegistry.get(GUIManager.class).getWindowById("hud").getElementById("toolbar");
+        EntityRef heldItem = InventoryUtils.getItemAt(entity, characterComponent.selectedItem);
+        ItemComponent instigatorItem = heldItem.getComponent(ItemComponent.class);
+        DisplayNameComponent instigatorItemInfo = heldItem.getComponent(DisplayNameComponent.class);
 
         int selectedCell = getSelectedItemFromCraftBlock(entity, craftingComponent.getCurrentLevel());
 
         EntityRef selectedEntity = craftingComponent.getCurrentLevelElements().get(selectedCell);
 
         ItemComponent targetItem = selectedEntity.getComponent(ItemComponent.class);
+        DisplayNameComponent targetItemInfo = selectedEntity.getComponent(DisplayNameComponent.class);
 
         if (instigatorItem == null || targetItem == null) {
             disablePossibleItem(craftingComponent);
             return;
         }
 
-        String instigatorName = instigatorItem.name.toLowerCase();
-        String targetName = targetItem.name.toLowerCase();
+        String instigatorName = instigatorItemInfo.name.toLowerCase();
+        String targetName = targetItemInfo.name.toLowerCase();
 
         if (entitesWithRefinement.containsKey(targetName) && !entitesWithRefinement.get(targetName).isEmpty()) {
 
             for (RefinementData refinementData : entitesWithRefinement.get(targetName)) {
                 if (refinementData.instigator.equals(instigatorName)) {
 
-                    CraftRecipeComponent craftRecipe = refinementData.resultPrefab.getComponent(CraftRecipeComponent.class);
-                    craftRecipe.resultCount = refinementData.resultCount;
-                    refinementData.resultPrefab.setComponent(craftRecipe);
+                    EntityRef refinementElement = refinementData.resultPrefab.copy();
 
+                    CraftRecipeComponent craftRecipe = refinementElement.getComponent(CraftRecipeComponent.class);
+                    craftRecipe.resultCount = refinementData.resultCount;
+                    refinementElement.saveComponent(craftRecipe);
                     EntityRef refinementElement = createNewElement(refinementData.resultPrefab);
 
                     if (!refinementElement.equals(EntityRef.NULL)) {
@@ -396,7 +404,7 @@ public class CraftingAction extends BaseComponentSystem
 
         }
     }
-
+         */
     private void disablePossibleItem(CraftingActionComponent craftingComponent) {
         if (craftingComponent.isRefinement) {
             craftingComponent.isRefinement = false;
@@ -411,9 +419,7 @@ public class CraftingAction extends BaseComponentSystem
     /*
      * Check current craft block for the recipe
      */
-    private EntityRef tryCraft(EntityRef entity) {
-
-        EntityManager entityManager = CoreRegistry.get(EntityManager.class);
+    /*private EntityRef tryCraft(EntityRef entity) {
         CraftingActionComponent craftingComponent = entity.getComponent(CraftingActionComponent.class);
         Map<String, List<String>> possibleRecipe = Maps.newHashMap();
 
@@ -427,8 +433,7 @@ public class CraftingAction extends BaseComponentSystem
 
             if (craftLevel != null) {
                 for (EntityRef craftElement : craftLevel) {
-                    ItemComponent item = craftElement.getComponent(ItemComponent.class);
-
+                    DisplayNameComponent item = craftElement.getComponent(DisplayNameComponent.class);
                     if (item != null) {
                         translatedLevel.add(item.name.toLowerCase());
                         countNotEmptyElements++;
@@ -464,11 +469,10 @@ public class CraftingAction extends BaseComponentSystem
         }
 
         return EntityRef.NULL;
-    }
+    }   */
 
-    private EntityRef createNewElement(Prefab prefab) {
+    /*private EntityRef createNewElement(Prefab prefab) {
 
-        PrefabManager prefMan = CoreRegistry.get(PrefabManager.class);
         Prefab resultPrefab = prefab;
         CraftRecipeComponent craftRecipe = prefab.getComponent(CraftRecipeComponent.class);
 
@@ -480,7 +484,7 @@ public class CraftingAction extends BaseComponentSystem
         }
 
         if (craftRecipe.type != CraftRecipeComponent.CraftRecipeType.SELF) {
-            resultPrefab = prefMan.getPrefab(craftRecipe.result);
+            resultPrefab = prefabManager.getPrefab(craftRecipe.result);
             name = craftRecipe.result;
         } else {
             resultPrefab = prefab;
@@ -491,7 +495,7 @@ public class CraftingAction extends BaseComponentSystem
         EntityRef result = EntityRef.NULL;
 
         if (resultPrefab != null) {
-            recipe = entityManager.create(resultPrefab.listComponents());
+            recipe = entityManager.create(resultPrefab);
         }
 
 
@@ -516,8 +520,8 @@ public class CraftingAction extends BaseComponentSystem
             ItemComponent newItem = new ItemComponent();
 
             newItem.stackCount = oldItem.stackCount;
-            newItem.container = oldItem.container;
-            newItem.name = oldItem.name;
+            //newItem.container = oldItem.container;
+            //newItem.name = oldItem.name;
             newItem.baseDamage = oldItem.baseDamage;
             newItem.consumedOnUse = oldItem.consumedOnUse;
             newItem.icon = oldItem.icon;
@@ -542,13 +546,13 @@ public class CraftingAction extends BaseComponentSystem
 
 
         return result;
-    }
+    }   */
 
     /*
      * Decrease stackCount of the item
      */
 
-    private void decreaseItems(EntityRef craftBlockEntity, EntityRef playerEntity) {
+   /* private void decreaseItems(EntityRef craftBlockEntity, EntityRef playerEntity) {
         CraftingActionComponent craftingComponent = craftBlockEntity.getComponent(CraftingActionComponent.class);
 
         if (craftingComponent == null) {
@@ -601,7 +605,7 @@ public class CraftingAction extends BaseComponentSystem
         }
 
 
-    }
+    }     */
 
     /*
      * Check craft block for the emptiness
@@ -613,7 +617,7 @@ public class CraftingAction extends BaseComponentSystem
 
             BlockComponent blockComp = craftBlockEntity.getComponent(BlockComponent.class);
             Block currentBlock = worldProvider.getBlock(blockComp.getPosition());
-            worldProvider.setBlock(blockComp.getPosition(), BlockManager.getInstance().getAir(), currentBlock);
+            worldProvider.setBlock(blockComp.getPosition(), BlockManager.getAir());
 
             craftBlockEntity.destroy();
             return;
@@ -658,237 +662,6 @@ public class CraftingAction extends BaseComponentSystem
         public byte resultCount = 1;
         public String instigator = "";
         public String target = "";
-        public Prefab resultPrefab = null;
-    }
-
-    private static class RecipeMatrix {
-        public int width = 3;
-        public int height = 3;
-        public Map<String, List<String>> recipe = null;
-        public static String EMPTY_ROW = " ";
-
-        public RecipeMatrix(Map<String, List<String>> recipe) {
-            this(recipe, 3, 3);
-        }
-
-        public RecipeMatrix(Map<String, List<String>> recipe, int width, int height) {
-            this.recipe = recipe;
-            this.width = width;
-            this.height = height;
-        }
-
-        /*
-         * Deleted empty columns and rows
-         *
-         * For example, we have some matrix like this:
-         *
-         * 1 0 1
-         * 1 0 1
-         * 0 0 0
-         *
-         */
-        public RecipeMatrix trim() {
-            HashMap<String, List<String>> matrix = new HashMap<String, List<String>>();
-
-            ArrayList<Integer> counterLines = new ArrayList<Integer>(width);
-            ArrayList<Integer> counterColumns = new ArrayList<Integer>(height);
-            int countLevels = recipe.size();
-
-            //calculate count for empty rows
-            for (int i = 0; i < height; i++) {
-                if (counterLines.size() < (i + 1)) {
-                    counterLines.add(0);
-                }
-                for (int j = 0; j < width; j++) {
-                    for (List<String> currentLevel : recipe.values()) {
-                        if (currentLevel.get(i * width + j).equals(EMPTY_ROW)) {
-                            counterLines.set(i, counterLines.get(i) + 1);
-                        }
-                    }
-                }
-            }
-
-            /*
-             * Now we know that our matrix has one line
-             * But we cant delete the line if it is between two non-empty lines
-             */
-            if (counterLines.size() == 3 &&
-                    counterLines.get(1) == countLevels * width &&
-                    counterLines.get(0) < countLevels * width &&
-                    counterLines.get(2) < countLevels * width) {
-                counterLines.set(1, 0);
-            }
-
-            //calculate count for empty columns
-            for (int i = 0; i < width; i++) {
-                if (counterColumns.size() < (i + 1)) {
-                    counterColumns.add(0);
-                }
-                for (int j = 0; j < height; j++) {
-                    for (List<String> currentLevel : recipe.values()) {
-                        if (currentLevel.get(j * width + i).equals(EMPTY_ROW)) {
-                            counterColumns.set(i, counterColumns.get(i) + 1);
-                        }
-                    }
-                }
-            }
-
-
-            if (counterColumns.size() == 3 &&
-                    counterColumns.get(1) == countLevels * height &&
-                    counterColumns.get(0) < countLevels * height &&
-                    counterColumns.get(2) < countLevels * height) {
-                counterColumns.set(1, 0);
-            }
-
-
-            int countLines = 0;
-
-            if (counterLines.isEmpty() && counterColumns.isEmpty()) {
-                return this;
-            }
-
-            //create new matrix without empty lines
-            for (int i = 0; i < height; i++) {
-                if (counterLines.get(i) < countLevels * width) {
-                    for (String key : recipe.keySet()) {
-                        if (!matrix.containsKey(key)) {
-                            matrix.put(key, new ArrayList<String>());
-                        }
-
-                        for (int j = 0; j < height; j++) {
-                            matrix.get(key).add(recipe.get(key).get(i * width + j));
-                        }
-                    }
-                    countLines++;
-                }
-            }
-
-            /*
-             * Now we have this result:
-             *
-             * 1 0 1
-             * 1 0 1
-             *
-             */
-
-            int countColumns = width;
-
-
-            //delete from the new matrix empty columns
-            for (int i = 0, tCounter = 0; i < countColumns; i++, tCounter++) {
-                if (counterColumns.get(tCounter) == countLevels * height) {
-                    for (String key : recipe.keySet()) {
-                        if (!matrix.containsKey(key)) {
-                            matrix.put(key, new ArrayList<String>());
-                        }
-
-                        for (int j = 0; j < countLines; j++) {
-                            int t = j * (countColumns - 1) + i;
-                            matrix.get(key).remove(t);
-                        }
-                    }
-                    countColumns--;
-                    //counterColumns.set( i, counterColumns.get(i) - 1 );
-                    i--;
-                }
-            }
-
-
-            return new RecipeMatrix(matrix, countColumns, countLines);
-        }
-
-        /*
-         * Rotate matrix
-         *
-         * input:     output:
-         *
-         * 1 0 2      1 3 1
-         * 3 4 8      8 4 0
-         * 1 8 7      7 8 2
-         *
-         */
-
-        public RecipeMatrix rotate() {
-
-            RecipeMatrix rotatedMatrix = new RecipeMatrix(new HashMap<String, List<String>>());
-
-            for (String key : recipe.keySet()) {
-                ArrayList<String> buff = new ArrayList<String>();
-
-                rotatedMatrix.recipe.put(key, buff);
-
-                for (int i = 0; i < height; i++) {
-                    for (int j = 0; j < width; j++) {
-                        int index = height * (width - j - 1) + i;
-                        buff.add(recipe.get(key).get(index < 0 ? 0 : index));
-                    }
-                }
-
-
-            }
-
-            rotatedMatrix.width = height;
-            rotatedMatrix.height = width;
-
-            return rotatedMatrix;
-        }
-
-        public boolean equals(RecipeMatrix matrix) {
-
-            if (recipe.size() != matrix.recipe.size()) {
-                return false;
-            }
-
-            for (int i = 0; i < 4; i++) {
-                if (matrix.width != width && matrix.height != height) {
-                    matrix = matrix.rotate();
-                    continue;
-                }
-
-                boolean found = true;
-
-                for (String key : recipe.keySet()) {
-                    int trace1 = getTrace(key);
-                    int trace2 = matrix.getTrace(key);
-
-                    if (getTrace(key) != matrix.getTrace(key) || !recipe.get(key).equals(matrix.recipe.get(key))) {
-                        found = false;
-                        break;
-                    }
-                }
-
-                if (found) {
-                    return true;
-                }
-
-                matrix = matrix.rotate();
-            }
-
-            for (String key : recipe.keySet()) {
-                if (!matrix.recipe.containsKey(key)) {
-                    return false;
-                }
-
-            }
-
-            return false;
-        }
-
-        public int getTrace(String level) {
-            String trace = "";
-
-            int min = Math.min(width, height);
-
-            for (int i = 0; i < min; i++) {
-                trace += recipe.get(level).get(i * min + i);
-            }
-
-            return trace.hashCode();
-        }
-
-        public RecipeMatrix clone() {
-            return new RecipeMatrix(this.recipe, this.width, this.height);
-        }
+        public EntityRef resultPrefab = null;
     }
 }

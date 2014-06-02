@@ -2,65 +2,64 @@ package org.terasology.craft.componentSystem.controllers;
 
 import org.newdawn.slick.Color;
 import org.terasology.asset.Assets;
-import org.terasology.componentSystem.RenderSystem;
-import org.terasology.componentSystem.UpdateSubscriberSystem;
-import org.terasology.componentSystem.controllers.LocalPlayerSystem;
-import org.terasology.components.InventoryComponent;
-import org.terasology.components.ItemComponent;
-import org.terasology.components.LocalPlayerComponent;
 import org.terasology.craft.components.actions.CraftingActionComponent;
 import org.terasology.craft.events.crafting.AddItemEvent;
 import org.terasology.craft.events.crafting.ChangeLevelEvent;
 import org.terasology.craft.events.crafting.CheckRefinementEvent;
 import org.terasology.craft.events.crafting.DeleteItemEvent;
 import org.terasology.craft.rendering.CraftingGrid;
-import org.terasology.entityFactory.BlockItemFactory;
-import org.terasology.entitySystem.*;
-import org.terasology.events.ActivateEvent;
-import org.terasology.game.CoreRegistry;
-import org.terasology.game.Timer;
+import org.terasology.entitySystem.entity.EntityRef;
+import org.terasology.entitySystem.event.EventPriority;
+import org.terasology.entitySystem.event.ReceiveEvent;
+import org.terasology.entitySystem.systems.BaseComponentSystem;
+import org.terasology.entitySystem.systems.RegisterMode;
+import org.terasology.entitySystem.systems.RegisterSystem;
+import org.terasology.entitySystem.systems.UpdateSubscriberSystem;
 import org.terasology.input.ButtonState;
-import org.terasology.input.CameraTargetSystem;
-import org.terasology.input.binds.*;
+import org.terasology.input.binds.interaction.AttackButton;
+import org.terasology.input.binds.inventory.DropItemButton;
+import org.terasology.input.binds.inventory.ToolbarNextButton;
+import org.terasology.input.binds.inventory.ToolbarPrevButton;
+import org.terasology.input.binds.inventory.UseItemButton;
+import org.terasology.input.binds.movement.RunButton;
+import org.terasology.input.cameraTarget.CameraTargetSystem;
 import org.terasology.input.events.MouseXAxisEvent;
 import org.terasology.input.events.MouseYAxisEvent;
-import org.terasology.logic.LocalPlayer;
-import org.terasology.logic.manager.GUIManager;
+import org.terasology.logic.characters.CharacterComponent;
+import org.terasology.logic.characters.CharacterMovementComponent;
+import org.terasology.logic.inventory.InventoryComponent;
+import org.terasology.logic.inventory.InventoryUtils;
+import org.terasology.logic.inventory.ItemComponent;
+import org.terasology.logic.players.LocalPlayer;
+import org.terasology.logic.players.LocalPlayerSystem;
+import org.terasology.logic.players.PlayerInventorySystem;
 import org.terasology.math.AABB;
-import org.terasology.physics.character.CharacterMovementComponent;
-import org.terasology.rendering.gui.framework.UIDisplayContainer;
-import org.terasology.rendering.gui.framework.UIDisplayElement;
-import org.terasology.rendering.gui.layout.ChooseRowLayout;
-import org.terasology.rendering.gui.widgets.UICompositeScrollable;
-import org.terasology.rendering.gui.widgets.UIImage;
-import org.terasology.rendering.gui.widgets.UIItemContainer;
-import org.terasology.rendering.renderer.AABBRenderer;
-import org.terasology.rendering.renderer.BlockOverlayRenderer;
+import org.terasology.registry.In;
 import org.terasology.rendering.world.WorldRenderer;
 import org.terasology.world.WorldProvider;
 import org.terasology.world.block.Block;
 import org.terasology.world.block.BlockComponent;
-import org.terasology.world.block.BlockItemComponent;
-import org.terasology.world.block.management.BlockManager;
 
 import javax.vecmath.Vector2f;
 import javax.vecmath.Vector3f;
-import javax.vecmath.Vector4f;
 
 /**
  * @author Adeon
  */
-@RegisterComponentSystem
-public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, EventHandlerSystem {
+@RegisterSystem(RegisterMode.AUTHORITY)
+public class CraftingSystem extends BaseComponentSystem implements UpdateSubscriberSystem {
 
     @In
     private LocalPlayer localPlayer;
 
     @In
-    private CameraTargetSystem cameraTargetSystem;
+    private PlayerInventorySystem playerInventorySystem;
 
     @In
-    private Timer timer;
+    private LocalPlayerSystem localPlayerSystem;
+
+    @In
+    private CameraTargetSystem cameraTargetSystem;
 
     @In
     private WorldProvider worldProvider;
@@ -69,10 +68,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
     private WorldRenderer worldRenderer;
 
     @In
-    private LocalPlayerSystem localPlayerSystem;
-
-    @In
-    private GUIManager guiManager;
+    private org.terasology.engine.Time timer;
 
     private boolean useButtonPushed = false;
     private boolean dropButtonPushed = false;
@@ -80,7 +76,9 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
     private boolean itsCraftActionTime = false;
     private int craftIncreaseDecreaseSpeed = 1;
     private boolean dontDrop = false;
-    private long lastTimeShowInventory, lastTimeThrowInteraction, lastInteraction;
+    private long lastTimeShowInventory = 0;
+    private long lastTimeThrowInteraction = 0;
+    private long lastInteraction = 0;
     private boolean additionalOptions = false;
 
     private static enum statesCreateBlock {
@@ -98,7 +96,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
     private boolean isGUIInit = false;
 
     /*Craft UI*/
-    private UIItemContainer inventory;
+   /* private UIItemContainer inventory;
     private UIImage craftingCloudBackground;
     private UIImage craftingResultBackground;
     private UIImage craftingArrow;
@@ -106,13 +104,13 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
     private UIItemContainer craftElement;
 
     private BlockOverlayRenderer craftingGridRenderer = new CraftingGrid();
-    private BlockOverlayRenderer aabbRenderer = new AABBRenderer(AABB.createEmpty());
+    private BlockOverlayRenderer aabbRenderer = new AABBRenderer(AABB.createEmpty());             */
 
     @Override
     public void initialise() {
     }
 
-    @ReceiveEvent(components = LocalPlayerComponent.class, priority = EventPriority.PRIORITY_HIGH)
+    @ReceiveEvent(components = CharacterComponent.class, priority = EventPriority.PRIORITY_HIGH)
     public void onMouseX(MouseXAxisEvent event, EntityRef entity) {
         if (event.getTarget().hasComponent(CraftingActionComponent.class)) {
             event.getTarget().send(new CheckRefinementEvent(event.getTarget(), entity));
@@ -120,7 +118,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
     }
 
 
-    @ReceiveEvent(components = LocalPlayerComponent.class, priority = EventPriority.PRIORITY_HIGH)
+    @ReceiveEvent(components = CharacterComponent.class, priority = EventPriority.PRIORITY_HIGH)
     public void onMouseY(MouseYAxisEvent event, EntityRef entity) {
         if (event.getTarget().hasComponent(CraftingActionComponent.class)) {
             event.getTarget().send(new CheckRefinementEvent(event.getTarget(), entity));
@@ -140,16 +138,16 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         }
     }
 
-    @ReceiveEvent(components = {LocalPlayerComponent.class, CharacterMovementComponent.class}, priority = EventPriority.PRIORITY_HIGH)
+    @ReceiveEvent(components = {CharacterComponent.class, CharacterMovementComponent.class}, priority = EventPriority.PRIORITY_HIGH)
     public void onRun(RunButton event, EntityRef entity) {
         additionalOptions = event.isDown();
     }
 
-    @ReceiveEvent(components = {LocalPlayerComponent.class, InventoryComponent.class}, priority = EventPriority.PRIORITY_HIGH)
+    @ReceiveEvent(components = {CharacterComponent.class, InventoryComponent.class}, priority = EventPriority.PRIORITY_HIGH)
     public void onAttackRequest(AttackButton event, EntityRef entity) {
         CraftingActionComponent craftingComponent = event.getTarget().getComponent(CraftingActionComponent.class);
         boolean itsCraftBlock = craftingComponent != null;
-        if (!event.isDown() || timer.getTimeInMs() - lastInteraction < 200 / craftIncreaseDecreaseSpeed) {
+        if (!event.isDown() || timer.getGameTimeInMs() - lastInteraction < 200 / craftIncreaseDecreaseSpeed) {
             if (!event.isDown()) {
                 craftIncreaseDecreaseSpeed = 1;
                 itsCraftActionTime = false;
@@ -169,27 +167,31 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         }
 
         if (itsCraftBlock) {
-            if (!additionalOptions && timer.getTimeInMs() - lastInteraction > (200 / craftIncreaseDecreaseSpeed)) {
-                LocalPlayerComponent localPlayerComp = entity.getComponent(LocalPlayerComponent.class);
-                if (localPlayerComp.isDead) return;
+            if (!additionalOptions && timer.getGameTimeInMs() - lastInteraction > (200 / craftIncreaseDecreaseSpeed)) {
+                //LocalPlayerComponent localPlayerComp = entity.getComponent(CharacterComponent.class);
+                //if (localPlayerComp.isDead) return;
+                if (!entity.hasComponent(CharacterMovementComponent.class)) {
+                    return;
+                }
                 float dropPower = getDropPower();
                 event.getTarget().send(new DeleteItemEvent(dropPower / 6));
                 dontDrop = true;
                 resetDropMark();
-                lastInteraction = timer.getTimeInMs();
+                lastInteraction = timer.getGameTimeInMs();
                 itsCraftActionTime = true;
             }
             event.consume();
         }
     }
 
-    @ReceiveEvent(components = {LocalPlayerComponent.class}, priority = EventPriority.PRIORITY_HIGH)
+    @ReceiveEvent(components = {CharacterComponent.class}, priority = EventPriority.PRIORITY_HIGH)
     public void onDropItem(DropItemButton event, EntityRef entity) {
 
-        LocalPlayerComponent localPlayerComp = entity.getComponent(LocalPlayerComponent.class);
         CraftingActionComponent craftingComponent = event.getTarget().getComponent(CraftingActionComponent.class);
 
-        if (localPlayerComp.isDead) return;
+        if (!entity.hasComponent(CharacterMovementComponent.class)) {
+            return;
+        }
 
         switch (event.getState()) {
             case DOWN:
@@ -211,14 +213,15 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
                 if (craftingComponent != null) {
 
                     if (lastTimeThrowInteraction == 0) {
-                        lastTimeThrowInteraction = timer.getTimeInMs();
+                        lastTimeThrowInteraction = timer.getGameTimeInMs();
                     }
 
-                    UIImage crossHair = (UIImage) CoreRegistry.get(GUIManager.class).getWindowById("hud").getElementById("crosshair");
+                    /***drop animation!!***/
+                    //UIImage crossHair = (UIImage) CoreRegistry.get(GUIManager.class).getWindowById("hud").getElementById("crosshair");
 
-                    crossHair.getTextureSize().set(new Vector2f(22f / 256f, 22f / 256f));
-                    float dropPower = getDropPower();
-                    crossHair.getTextureOrigin().set(new Vector2f((46f + 22f * dropPower) / 256f, 23f / 256f));
+                    //crossHair.getTextureSize().set(new Vector2f(22f / 256f, 22f / 256f));
+                    //float dropPower = getDropPower();
+                    //crossHair.getTextureOrigin().set(new Vector2f((46f + 22f * dropPower) / 256f, 23f / 256f));
                     //event.consume();
                     return;
                 }
@@ -230,7 +233,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
 
                 if (!useButtonPushed && stateCreateBlock == statesCreateBlock.CREATED) {
                     stateCreateBlock = statesCreateBlock.NOT_READY;
-                    localPlayerSystem.resetDropMark();
+                    playerInventorySystem.resetDropMark();
                     resetDropMark();
                     event.consume();
                     return;
@@ -243,13 +246,13 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
                 if (craftingComponent != null) {
                     float dropPower = getDropPower();
                     if (stateCreateBlock != statesCreateBlock.CREATED) {
-                        localPlayerSystem.resetDropMark();
+                        playerInventorySystem.resetDropMark();
                         resetDropMark();
                         event.consume();
                         return;
                     }
                     if (dontDrop) {
-                        localPlayerSystem.resetDropMark();
+                        playerInventorySystem.resetDropMark();
                         resetDropMark();
                         dontDrop = false;
                         return;
@@ -257,7 +260,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
 
                     dropPower *= 25f;
                     resetDropMark();
-                    localPlayerSystem.resetDropMark();
+                    playerInventorySystem.resetDropMark();
                     event.consume();
                 }
 
@@ -266,8 +269,8 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
 
     }
 
-
-    @ReceiveEvent(components = {LocalPlayerComponent.class}, priority = EventPriority.PRIORITY_HIGH)
+    /*see later*/
+   /* @ReceiveEvent(components = {CharacterComponent.class}, priority = EventPriority.PRIORITY_HIGH)
     public void onNextItem(ToolbarNextButton event, EntityRef entity) {
 
         if (additionalOptions && cameraTargetSystem.getTarget().getComponent(CraftingActionComponent.class) != null) {
@@ -294,9 +297,9 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         if (cameraTargetSystem.getTarget().hasComponent(CraftingActionComponent.class)) {
             cameraTargetSystem.getTarget().send(new CheckRefinementEvent(cameraTargetSystem.getTarget(), entity));
         }
-    }
+    }       */
 
-    @ReceiveEvent(components = {LocalPlayerComponent.class}, priority = EventPriority.PRIORITY_HIGH)
+    /*@ReceiveEvent(components = {CharacterComponent.class}, priority = EventPriority.PRIORITY_HIGH)
     public void onPrevItem(ToolbarPrevButton event, EntityRef entity) {
         if (additionalOptions && cameraTargetSystem.getTarget().getComponent(CraftingActionComponent.class) != null) {
             InventoryComponent inventory = localPlayer.getEntity().getComponent(InventoryComponent.class);
@@ -327,13 +330,13 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
             cameraTargetSystem.getTarget().send(new CheckRefinementEvent(cameraTargetSystem.getTarget(), entity));
         }
 
-    }
+    }  */
 
-    @ReceiveEvent(components = {LocalPlayerComponent.class, InventoryComponent.class}, priority = EventPriority.PRIORITY_CRITICAL)
+    @ReceiveEvent(components = {CharacterComponent.class, InventoryComponent.class}, priority = EventPriority.PRIORITY_CRITICAL)
     public void onUseItemRequest(UseItemButton event, EntityRef entity) {
 
         CraftingActionComponent craftingComponent = event.getTarget().getComponent(CraftingActionComponent.class);
-        if (!event.isDown() || timer.getTimeInMs() - lastInteraction < 200 / craftIncreaseDecreaseSpeed) {
+        if (!event.isDown() || timer.getGameTimeInMs() - lastInteraction < 200 / craftIncreaseDecreaseSpeed) {
             if (!event.isDown()) {
                 useButtonPushed = false;
                 itsCraftActionTime = false;
@@ -365,39 +368,43 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
 
         if (craftingComponent != null) {
             useButtonPushed = true;
-            if (timer.getTimeInMs() - lastInteraction > (200 / craftIncreaseDecreaseSpeed) && !additionalOptions) {
-                LocalPlayerComponent localPlayerComp = entity.getComponent(LocalPlayerComponent.class);
-                if (localPlayerComp.isDead) return;
+            if (timer.getGameTimeInMs() - lastInteraction > (200 / craftIncreaseDecreaseSpeed) && !additionalOptions) {
+                CharacterComponent characterComponent = entity.getComponent(CharacterComponent.class);
+                if (!entity.hasComponent(CharacterMovementComponent.class)){
+                    return;
+                }
                 InventoryComponent inventory = entity.getComponent(InventoryComponent.class);
-                UIItemContainer toolbar = (UIItemContainer) guiManager.getWindowById("hud").getElementById("toolbar");
+                //UIItemContainer toolbar = (UIItemContainer) guiManager.getWindowById("hud").getElementById("toolbar");
 
-                EntityRef selectedItemEntity = inventory.itemSlots.get(localPlayerComp.selectedTool + toolbar.getSlotStart());
+                EntityRef selectedItemEntity = InventoryUtils.getItemAt(entity, characterComponent.selectedItem);
+                //EntityRef selectedItemEntity = inventory.itemSlots.get(localPlayerComp.selectedTool + toolbar.getSlotStart());
 
                 if (!selectedItemEntity.equals(EntityRef.NULL)) {
                     float dropPower = getDropPower();
                     itsCraftActionTime = true;
                     event.getTarget().send(new AddItemEvent(event.getTarget(), selectedItemEntity, dropPower / 6));
                     resetDropMark();
-                    lastInteraction = timer.getTimeInMs();
+                    lastInteraction = timer.getGameTimeInMs();
                 }
             }
             event.consume();
         } else {
 
             if (stateCreateBlock == statesCreateBlock.READY) {
-                createCraftBlock(event, entity);
+                createCraftPlace(event, entity);
             }
 
         }
     }
 
-    private void createCraftBlock(UseItemButton event, EntityRef playerEntity) {
+    private void createCraftPlace(UseItemButton event, EntityRef playerEntity) {
         if (event.getState() != ButtonState.DOWN) {
             return;
         }
 
-        LocalPlayerComponent localPlayerComp = playerEntity.getComponent(LocalPlayerComponent.class);
-        if (localPlayerComp.isDead) return;
+        if (!playerEntity.hasComponent(CharacterMovementComponent.class)){
+            return;
+        }
 
         EntityRef target = event.getTarget();
 
@@ -406,17 +413,13 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         if (block != null) {
             Block currentBlock = worldProvider.getBlock(block.getPosition());
 
-            EntityManager entityManager = CoreRegistry.get(EntityManager.class);
-
             if (!currentBlock.isInvisible() &&
                     !currentBlock.isLiquid() &&
-                    !currentBlock.isPenetrable() &&
-                    currentBlock.isCraftPlace()
+                    !currentBlock.isPenetrable()/* &&
+                    currentBlock.isCraftPlace()   */
                     ) {
-                InventoryComponent inventory = playerEntity.getComponent(InventoryComponent.class);
-                if (localPlayerComp.isDead) return;
-
-                EntityRef selectedItemEntity = inventory.itemSlots.get(localPlayerComp.selectedTool);
+                CharacterComponent characterComponent = playerEntity.getComponent(CharacterComponent.class);
+                EntityRef selectedItemEntity = InventoryUtils.getItemAt(playerEntity, characterComponent.selectedItem);
 
                 ItemComponent item = selectedItemEntity.getComponent(ItemComponent.class);
 
@@ -446,7 +449,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
 
                     stateCreateBlock = statesCreateBlock.CREATED;
                 }
-                lastInteraction = timer.getTimeInMs();
+                lastInteraction = timer.getGameTimeInMs();
                 localPlayerComp.handAnimation = 0.5f;
                 playerEntity.saveComponent(localPlayerComp);
                 event.consume();
@@ -458,33 +461,32 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
     public void update(float delta) {
 
         if (!isGUIInit) {
-            initCraftUI();
+            //initCraftUI();
             isGUIInit = true;
         }
 
         if (!localPlayer.isValid())
             return;
 
-        EntityRef entity = localPlayer.getEntity();
-        LocalPlayerComponent localPlayerComponent = entity.getComponent(LocalPlayerComponent.class);
+        EntityRef entity = localPlayer.getCharacterEntity();
 
-        if (localPlayerComponent.isDead) {
+        if (!entity.hasComponent(CharacterMovementComponent.class)) {
             return;
         }
 
         boolean craftingBlockIsTarget = cameraTargetSystem.getTarget().getComponent(CraftingActionComponent.class) != null;
 
         if (toolbarChanged && !craftingBlockIsTarget) {
-            UIItemContainer toolbar = (UIItemContainer) guiManager.getWindowById("hud").getElementById("toolbar");
-            toolbar.setEntity(localPlayer.getEntity(), 0, 9);
+            /*UIItemContainer toolbar = (UIItemContainer) guiManager.getWindowById("hud").getElementById("toolbar");
+            toolbar.setEntity(localPlayer.getEntity(), 0, 9);*/
             toolbarChanged = false;
         }
 
-        UIDisplayContainer inventory = (UIDisplayContainer) guiManager.getWindowById("hud").getElementById("hud:inventory");
+        //UIDisplayContainer inventory = (UIDisplayContainer) guiManager.getWindowById("hud").getElementById("hud:inventory");
 
-        if (inventory.isVisible() && timer.getTimeInMs() - lastTimeShowInventory >= 1500) {
+        /*if (inventory.isVisible() && timer.getGameTimeInMs() - lastTimeShowInventory >= 1500) {
             inventory.setVisible(false);
-        }
+        }         */
 
         if (craftingBlockIsTarget) {
             if (!localPlayerSystem.getAABBRenderer().equals(craftingGridRenderer)) {
@@ -502,7 +504,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         UICompositeScrollable inventory = (UICompositeScrollable) guiManager.getWindowById("hud").getElementById("hud:inventory");
         inventory.setVisible(true);
         ((ChooseRowLayout) inventory.getLayout()).getPosition().y = (position - 1) * 36f;
-        lastTimeShowInventory = timer.getTimeInMs();
+        lastTimeShowInventory = timer.getGameTimeInMs();
     }
 
     private void resetDropMark() {
@@ -517,7 +519,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         if (lastTimeThrowInteraction == 0) {
             return 0;
         }
-        float dropPower = (float) Math.floor((timer.getTimeInMs() - lastTimeThrowInteraction) / 200);
+        float dropPower = (float) Math.floor((timer.getGameTimeInMs() - lastTimeThrowInteraction) / 200);
 
         if (dropPower > 6) {
             dropPower = 6;
@@ -526,7 +528,7 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         return dropPower;
     }
 
-    private void initCraftUI() {
+   /* private void initCraftUI() {
         miniInventory = new UICompositeScrollable();
         miniInventory.setId("hud:inventory");
         miniInventory.setSize(new Vector2f(360f, 152f));
@@ -590,30 +592,5 @@ public class CraftingSystem implements UpdateSubscriberSystem, RenderSystem, Eve
         guiManager.getWindowById("hud").addDisplayElement(craftingArrow);
         guiManager.getWindowById("hud").addDisplayElement(miniInventory);
         guiManager.getWindowById("hud").addDisplayElement(craftElement);
-    }
-
-    @Override
-    public void shutdown() {
-    }
-
-    @Override
-    public void renderOpaque() {
-    }
-
-    @Override
-    public void renderAlphaBlend() {
-    }
-
-    @Override
-    public void renderOverlay() {
-    }
-
-    @Override
-    public void renderFirstPerson() {
-    }
-
-    @Override
-    public void renderShadows() {
-    }
-
+    } */
 }

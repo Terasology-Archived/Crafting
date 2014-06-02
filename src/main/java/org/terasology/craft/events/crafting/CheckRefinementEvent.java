@@ -1,12 +1,13 @@
+
 package org.terasology.craft.events.crafting;
 
-import org.terasology.entitySystem.AbstractEvent;
-import org.terasology.entitySystem.EntityRef;
+import org.terasology.entitySystem.entity.EntityRef;
+import org.terasology.entitySystem.event.AbstractConsumableEvent;
 
 /**
  * @author Small-Jeeper
  */
-public class CheckRefinementEvent extends AbstractEvent {
+public class CheckRefinementEvent extends AbstractConsumableEvent {
     private EntityRef target;
     private EntityRef instigator;
 

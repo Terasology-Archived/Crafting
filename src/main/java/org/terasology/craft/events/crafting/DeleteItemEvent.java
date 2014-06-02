@@ -1,11 +1,12 @@
+
 package org.terasology.craft.events.crafting;
 
-import org.terasology.entitySystem.AbstractEvent;
+import org.terasology.entitySystem.event.AbstractConsumableEvent;
 
 /**
  * @author Small-Jeeper
  */
-public class DeleteItemEvent extends AbstractEvent {
+public class DeleteItemEvent extends AbstractConsumableEvent {
     private float percent;
 
     public DeleteItemEvent() {
